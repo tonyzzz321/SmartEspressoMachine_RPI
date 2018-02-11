@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
 
 import sys, logging, traceback
-
-
+import rpc_server
 
 def main(argv):
-
-   pass
+   rpc_server.start()
 
 def msg(text, level='info'):
 
