@@ -4,7 +4,7 @@ import sys, logging, traceback
 import rpc_server
 
 def main(argv):
-   rpc_server.start()
+   rpc_server.start(logger=logger)
 
 def msg(text, level='info'):
 
