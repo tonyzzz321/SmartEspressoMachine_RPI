@@ -1,10 +1,9 @@
 import json, hashlib, time, urllib.parse
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from jsonrpcserver import methods
-# pip install jsonrpcserver
 
 from rpc_server_methods import *
-from rpc_server_constants import *
+from sem_constants import *
 from app_key import *
 
 def MakeHttpJsonRpcServer(logger):
