@@ -57,11 +57,13 @@ class Scheduler():
          'cron': cron_text,
          'enabled': enabled
          })
+         self.write_database()
          return 'SUCCESS'
       for entry in self.database[user]:
          if entry['id'] == id:
             entry['cron'] = cron_text
             entry['enabled'] = enabled
+            self.write_database()
             return 'SUCCESS'
       return 'ERROR: id not found for this user'
 
@@ -72,10 +74,12 @@ class Scheduler():
          return 'ERROR: user not found'
       if id == 0:
          self.database[user] = []
+         self.write_database()
          return 'SUCCESS'
       for entry in self.database[user]:
          if entry['id'] == id:
             self.database[user].remove(entry)
+            self.write_database()
             return 'SUCCESS'
       return 'ERROR: id not found for this user'
 

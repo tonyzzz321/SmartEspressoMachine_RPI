@@ -1,26 +1,55 @@
 #!/usr/bin/env python3
 
-import sys, logging, traceback
-import rpc_server
+import sys, logging, traceback, time
+from multiprocessing import Process, Pipe
+
+
 from sem_scheduler import Scheduler
+from sem_notifier import Notifier
+from sem_machine import Machine
+import sem_rpc_server as Server
+import sem_rpc_responder as RPCResponser
 from sem_constants import *
 
-def main(argv):
-   scheduler = Scheduler(db_path = SHEDULER_DATABASE_PATH)
-   rpc_server.start(logger=logger)
+class Controller():
+
+   machine = None
+   notifier = None
+   scheduler = None
+   server_pipe = None
+   server_process = None
+
+   def __init__(self):
+      self.scheduler = Scheduler(db_path = SCHEDULER_DATABASE_PATH)
+      self.machine = Machine()
+      self.notifier = Notifier()
+      parent_conn, child_conn = Pipe()
+      self.server_pipe = parent_conn
+      self.server_process = Process(target = Server.start, args = (logger, child_conn, ))
+      self.server_process.start()
+
+   def main(self):
+      while True:
+         if self.server_pipe.poll(1) == True:
+            self.server_pipe.send(self.process_rpc_request(self.server_pipe.recv()))
+         else:
+            time.sleep(1)
+
+   def process_rpc_request(self, request_dict):
+      rpc_call_name = request_dict['rpc_call']
+      if hasattr(RPCResponser, rpc_call_name):
+         rpc_call_method = getattr(RPCResponser, rpc_call_name)
+         param_dict = dict()
+         for required_param in rpc_call_method.__code__.co_varnames:
+            param_dict[required_param] = request_dict[required_param]
+         return rpc_call_method(**param_dict)
+
+
 
 def msg(text, level='info'):
    print(text)
-   if level == 'debug':
-      logger.debug(text)
-   elif level == 'info':
-      logger.info(text)
-   elif level == 'warning':
-      logger.warning(text)
-   elif level == 'error':
-      logger.error(text)
-   elif level == 'critical':
-      logger.critical(text)
+   if hasattr(logger, level):
+      getattr(logger, level)(text)
    else: # print only, no log
       return
 
@@ -34,7 +63,7 @@ if __name__ == "__main__":
    logger = logging.getLogger(PROGRAM_NAME)
    
    try:
-      main(sys.argv[1:])
+      Controller().main()
    except SystemExit:
       pass
    except:

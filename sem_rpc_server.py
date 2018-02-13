@@ -1,12 +1,13 @@
 import json, hashlib, time, urllib.parse
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from jsonrpcserver import methods
+from jsonrpcserver.exceptions import MethodNotFound, InvalidParams
 
-from rpc_server_methods import *
 from sem_constants import *
 from app_key import *
+import sem_rpc_responder as RPCResponser
 
-def MakeHttpJsonRpcServer(logger):
+def MakeCustomLoggableJSONRPCRequestHandler(logger):
 
    class CustomHTTPRequestHandler(BaseHTTPRequestHandler):
       
@@ -69,18 +70,17 @@ def MakeHttpJsonRpcServer(logger):
 
          request = json.loads(req)
          try:
-            method = request['method']
+            request['id']
+            if request['method'] != 'sem_do':
+               raise KeyError
             params = request['params']
          except KeyError:
             return False
          try:
+            params['rpc_call']
             timestamp = params['ts']
             signature = params['sign']
-            method_call = params['method_call']
          except KeyError:
-            return False
-
-         if method != method_call:
             return False
 
          if self.is_time_valid(ts = timestamp, max_diff = 30) is False:
@@ -108,6 +108,26 @@ def MakeHttpJsonRpcServer(logger):
    return CustomHTTPRequestHandler
 
 
-def start(logger):
-   HttpJsonRpcServer = MakeHttpJsonRpcServer(logger)
-   HTTPServer(('', 9999), HttpJsonRpcServer).serve_forever()
+
+global_server_pipe = None
+
+def start(logger, pipe):
+   global global_server_pipe
+   global_server_pipe = pipe
+   handler = MakeCustomLoggableJSONRPCRequestHandler(logger)
+   HTTPServer((SERVER_BIND_IP, SERVER_PORT), handler).serve_forever()
+
+
+@methods.add
+def sem_do(**kwargs):
+   param = dict(**kwargs)
+   # if param['rpc_call'] not in rpc_methods_dict.keys():
+   if hasattr(RPCResponser, param['rpc_call']) == False:
+      raise MethodNotFound('method %s is not supported' % param['rpc_call'])
+   # for required_param in rpc_methods_dict[param['rpc_call']]:
+   for required_param in getattr(RPCResponser, param['rpc_call']).__code__.co_varnames:
+      if required_param not in param.keys():
+         raise InvalidParams('param %s is missing for method %s' % (required_param, param['rpc_call']))
+   global_server_pipe.send(param)
+   result = global_server_pipe.recv()
+   return str(result)
