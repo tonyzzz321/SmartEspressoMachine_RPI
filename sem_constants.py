@@ -16,6 +16,9 @@ RPC_PATH = '/jsonrpc'
 SSL_CERT = ''
 SSL_KEY = ''
 
+# machine constants
+WATER_THRESHOLD = 12
+
 # rpc server available methods
 RPC_METHODS = {
    'ping': [],
@@ -50,4 +53,3 @@ RPC_METHODS = {
 #    return h.hexdigest()
 #    
 
-# zombie process issue

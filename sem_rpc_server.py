@@ -1,17 +1,15 @@
 import json, hashlib, time, urllib.parse
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from jsonrpcserver import methods
-from jsonrpcserver.exceptions import MethodNotFound, InvalidParams
+from jsonrpcserver.exceptions import MethodNotFound, InvalidParams, ServerError
 
 from sem_constants import *
 from app_key import *
-import sem_rpc_responder as RPCResponser
+from sem_rpc_executor import RPCExecutor
 
 def MakeCustomLoggableJSONRPCRequestHandler(logger):
 
    class CustomHTTPRequestHandler(BaseHTTPRequestHandler):
-      
-      logger = None
 
       def __init__(self, *args, **kwargs):
          self.logger = logger
@@ -122,12 +120,17 @@ def start(logger, pipe):
 def sem_do(**kwargs):
    param = dict(**kwargs)
    # if param['rpc_call'] not in rpc_methods_dict.keys():
-   if hasattr(RPCResponser, param['rpc_call']) == False:
+   if hasattr(RPCExecutor, param['rpc_call']) == False:
       raise MethodNotFound('method %s is not supported' % param['rpc_call'])
    # for required_param in rpc_methods_dict[param['rpc_call']]:
-   for required_param in getattr(RPCResponser, param['rpc_call']).__code__.co_varnames:
+   for required_param in getattr(RPCExecutor, param['rpc_call']).__code__.co_varnames:
       if required_param not in param.keys():
+         if required_param == 'self':
+               continue
          raise InvalidParams('param %s is missing for method %s' % (required_param, param['rpc_call']))
    global_server_pipe.send(param)
-   result = global_server_pipe.recv()
+   try:
+      result = global_server_pipe.recv()
+   except EOFError:
+      raise ServerError()
    return str(result)

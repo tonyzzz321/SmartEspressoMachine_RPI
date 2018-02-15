@@ -3,12 +3,10 @@ from croniter import croniter
 
 class Scheduler():
 
-   database_path = None
-   database = None
-   next_id = None
-
    def __init__(self, db_path):
       self.database_path = db_path
+      self.database = None
+      self.next_id = None
       self.load_database()
 
    def load_database(self):

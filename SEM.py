@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import sys, logging, traceback, time
+import sys, logging, traceback, time, signal
 from multiprocessing import Process, Pipe
 
 
@@ -8,21 +8,16 @@ from sem_scheduler import Scheduler
 from sem_notifier import Notifier
 from sem_machine import Machine
 import sem_rpc_server as Server
-import sem_rpc_responder as RPCResponser
+from sem_rpc_executor import RPCExecutor
 from sem_constants import *
 
 class Controller():
 
-   machine = None
-   notifier = None
-   scheduler = None
-   server_pipe = None
-   server_process = None
-
    def __init__(self):
       self.scheduler = Scheduler(db_path = SCHEDULER_DATABASE_PATH)
-      self.machine = Machine()
+      self.machine = Machine(11, 12, 13)  # placeholder for gpio pins
       self.notifier = Notifier()
+      self.executor = RPCExecutor(self.scheduler, self.machine, self.notifier)
       parent_conn, child_conn = Pipe()
       self.server_pipe = parent_conn
       self.server_process = Process(target = Server.start, args = (logger, child_conn, ))
@@ -37,12 +32,15 @@ class Controller():
 
    def process_rpc_request(self, request_dict):
       rpc_call_name = request_dict['rpc_call']
-      if hasattr(RPCResponser, rpc_call_name):
-         rpc_call_method = getattr(RPCResponser, rpc_call_name)
+      if hasattr(self.executor, rpc_call_name):
+         rpc_call_method = getattr(self.executor, rpc_call_name)
          param_dict = dict()
          for required_param in rpc_call_method.__code__.co_varnames:
+            if required_param == 'self':
+               continue
             param_dict[required_param] = request_dict[required_param]
          return rpc_call_method(**param_dict)
+      return None
 
 
 
@@ -52,6 +50,14 @@ def msg(text, level='info'):
       getattr(logger, level)(text)
    else: # print only, no log
       return
+
+def exit_script(exit_code = 0):
+   msg('Receive terminate signal, script exiting with exit code %d' % exit_code)
+   try:
+      controller.server_process.terminate()
+   except (NameError, AttributeError):
+      pass
+   sys.exit(exit_code)
 
 if __name__ == "__main__":
    log_file_path = LOG_FILE_PATH
@@ -63,10 +69,11 @@ if __name__ == "__main__":
    logger = logging.getLogger(PROGRAM_NAME)
    
    try:
-      Controller().main()
-   except SystemExit:
-      pass
-   except:
+      controller = Controller()
+      controller.main()
+   except Exception:
       tb = traceback.format_exc()
       msg(tb, level='error')
-      sys.exit(100)
+      exit_script(100)
+   except (SystemExit, KeyboardInterrupt):
+      exit_script()
