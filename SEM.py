@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 
-import sys, logging, traceback, time, signal
+import sys, logging, traceback, time, inspect
 from multiprocessing import Process, Pipe
-
 
 from sem_scheduler import Scheduler
 from sem_notifier import Notifier
@@ -27,6 +26,13 @@ class Controller():
       while True:
          if self.server_pipe.poll(1) == True:
             self.server_pipe.send(self.process_rpc_request(self.server_pipe.recv()))
+         if self.scheduler.times_up == True:
+            result = self.machine.start_make_coffee()
+            if result == 'SUCCESS':
+               self.scheduler.outside_reset_times_up_state()
+               self.scheduler.start_timer_for_next_job()
+            else:
+               self.notifier.send(result)
          else:
             time.sleep(1)
 
@@ -35,13 +41,12 @@ class Controller():
       if hasattr(self.executor, rpc_call_name):
          rpc_call_method = getattr(self.executor, rpc_call_name)
          param_dict = dict()
-         for required_param in rpc_call_method.__code__.co_varnames:
+         for required_param in inspect.getfullargspec(rpc_call_method).args:
             if required_param == 'self':
                continue
             param_dict[required_param] = request_dict[required_param]
          return rpc_call_method(**param_dict)
       return None
-
 
 
 def msg(text, level='info'):
@@ -55,6 +60,8 @@ def exit_script(exit_code = 0):
    msg('Receive terminate signal, script exiting with exit code %d' % exit_code)
    try:
       controller.server_process.terminate()
+      controller.scheduler.timer.cancel()
+      controller.machine.thread_exit = True
    except (NameError, AttributeError):
       pass
    sys.exit(exit_code)

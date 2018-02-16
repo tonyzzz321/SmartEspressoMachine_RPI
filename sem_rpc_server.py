@@ -1,4 +1,4 @@
-import json, hashlib, time, urllib.parse
+import json, hashlib, time, urllib.parse, inspect
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from jsonrpcserver import methods
 from jsonrpcserver.exceptions import MethodNotFound, InvalidParams, ServerError
@@ -92,7 +92,7 @@ def MakeCustomLoggableJSONRPCRequestHandler(logger):
          for key in keys:
             data += "" if (data == "") else "&"
             value = params[key]
-            if type(value) == int:
+            if type(value) != str:
                value = str(value)
             data += key + "=" + str(urllib.parse.quote(value))
          h = hashlib.sha256()
@@ -123,7 +123,7 @@ def sem_do(**kwargs):
    if hasattr(RPCExecutor, param['rpc_call']) == False:
       raise MethodNotFound('method %s is not supported' % param['rpc_call'])
    # for required_param in rpc_methods_dict[param['rpc_call']]:
-   for required_param in getattr(RPCExecutor, param['rpc_call']).__code__.co_varnames:
+   for required_param in inspect.getfullargspec(getattr(RPCExecutor, param['rpc_call'])).args:
       if required_param not in param.keys():
          if required_param == 'self':
                continue
@@ -133,4 +133,4 @@ def sem_do(**kwargs):
       result = global_server_pipe.recv()
    except EOFError:
       raise ServerError()
-   return str(result)
+   return result

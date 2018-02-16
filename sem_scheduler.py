@@ -1,4 +1,5 @@
 import json, time
+from threading import Lock, Timer
 from croniter import croniter
 
 class Scheduler():
@@ -8,6 +9,12 @@ class Scheduler():
       self.database = None
       self.next_id = None
       self.load_database()
+      self.timer = None
+      self.timer_running = False
+      self.timer_running_lock = Lock()
+      self.times_up = False
+      self.times_up_lock = Lock()
+      self.start_timer_for_next_job()
 
    def load_database(self):
       try:
@@ -15,10 +22,35 @@ class Scheduler():
             self.database = json.loads(db.read())
             self.next_id = self.get_next_id()
       except:
-         self.database = {}   # dict with key = user, value = list of dict below
+         self.database = {'pi':[]}   # dict with key = user, value = list of dict below
          # {'id': int(id), 'cron': str(cron_expression), enabled': True/False}
          # cron_expression: '* * * * *' (minute, hour, day of month, month, day of week)
          self.next_id = 1
+
+   def start_timer_for_next_job(self):
+      if self.timer_running == True:
+         self.timer.cancel()
+         self.__set_timer_running_state(False)
+      countdown = self.seconds_until_next_job()
+      if countdown != None and type(countdown) == int:
+         self.timer = Timer(countdown, self.__timer_expire_action)
+         self.__set_timer_running_state(True)
+         self.timer.start()
+
+   def __timer_expire_action(self):
+      self.__set_timer_running_state(False)
+      self.__set_times_up_state(True)
+
+   def __set_timer_running_state(self, new_state):
+      with self.timer_running_lock:
+         self.timer_running = new_state
+
+   def __set_times_up_state(self, new_state):
+      with self.times_up_lock:
+         self.times_up = new_state
+
+   def outside_reset_times_up_state(self):
+      self.__set_times_up_state(False)
 
    def get_next_id(self):
       if self.next_id != None:
@@ -55,12 +87,14 @@ class Scheduler():
          'cron': cron_text,
          'enabled': enabled
          })
+         self.start_timer_for_next_job()
          self.write_database()
          return 'SUCCESS'
       for entry in self.database[user]:
          if entry['id'] == id:
             entry['cron'] = cron_text
             entry['enabled'] = enabled
+            self.start_timer_for_next_job()
             self.write_database()
             return 'SUCCESS'
       return 'ERROR: id not found for this user'
@@ -72,16 +106,18 @@ class Scheduler():
          return 'ERROR: user not found'
       if id == 0:
          self.database[user] = []
+         self.start_timer_for_next_job()
          self.write_database()
          return 'SUCCESS'
       for entry in self.database[user]:
          if entry['id'] == id:
             self.database[user].remove(entry)
+            self.start_timer_for_next_job()
             self.write_database()
             return 'SUCCESS'
       return 'ERROR: id not found for this user'
 
-   def get_entry(self, id, user = 'pi'):
+   def get_entry(self, id = 0, user = 'pi'):
    # id = zero -> get all entries for specified user, id = nonzero -> get specific entry
    # return 'ERROR' if id = nonzero and not found for specified user
       if user not in self.database.keys():
@@ -111,6 +147,8 @@ class Scheduler():
 
       enabled_entries = filter((lambda x: x['enabled'] == True), all_entries)
       base_time = time.time()
-      second_in_entries = map((lambda x: croniter(x['cron'], base_time).get_next() - base_time), enabled_entries)
+      second_in_entries = list(map((lambda x: int(croniter(x['cron'], base_time).get_next() - base_time)), enabled_entries))
 
-      return min(int(second_in_entries))
+      if len(second_in_entries) == 0:
+         return None
+      return min(second_in_entries)

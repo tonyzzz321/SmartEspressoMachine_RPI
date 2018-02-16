@@ -19,20 +19,6 @@ SSL_KEY = ''
 # machine constants
 WATER_THRESHOLD = 12
 
-# rpc server available methods
-RPC_METHODS = {
-   'ping': [],
-   'add_schedule': ['id', 'cron_text'],   # no multiple user yet
-   'delete_schedule': ['id'], # no multiple user yet
-   'get_schedule_by_id': ['id'], # no multiple user yet
-   'get_schedule_list': [],   # no multiple user yet
-   'get_seconds_to_next_schedule': ['id'],   # no multiple user yet
-   'test_notification': [],
-   'make_coffee_now': [],
-   'get_cup_status': [],
-   'get_water_level': [],
-   'get_machine_state': []
-}
 
 # def sign(rpc_call, param_dict, ts, app_key):
 #    params = param_dict

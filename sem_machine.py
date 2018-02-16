@@ -5,6 +5,8 @@ from sem_constants import *
 class Machine():
    
    def __init__(self, machine_gpio, water_gpio, cup_gpio):
+   # def __init__(self, scheduler, machine_gpio, water_gpio, cup_gpio):
+      # self.scheduler = scheduler
       self.machine_gpio = machine_gpio
       self.water_sensor_gpio = water_gpio
       self.cup_sensor_gpio = cup_gpio
@@ -16,7 +18,8 @@ class Machine():
       self.water_level_lock = Lock()
       self.water_enough_lock = Lock()
       self.machine_state_lock = Lock()
-      self.child_process = Thread(target=self.__keep_update_coffee_ready_status)
+      self.thread_exit = False
+      self.child_thread = Thread(target=self.__keep_update_coffee_ready_status)
       self.get_machine_state()
       # READY_TO_MAKE, NOT_READY_TO_MAKE, COFFEE_IS_READY, MAKING_IN_PROGRESS
 
@@ -49,26 +52,30 @@ class Machine():
          }
 
    def get_not_ready_reason(self):
-      if (self.cup_present and self.water_enough) or (self.machine_state != 'NOT_READY_TO_MAKE'):
-         return 'Something is wrong. Please get machine state again.'
-      elif self.cup_present and not self.water_enough:
-         return 'not enough water'
-      elif not self.cup_present and self.water_enough:
-         return 'no cup detected'
-      elif not self.cup_present and not self.water_enough:
-         return 'not enough water and no cup detected'
+      if self.machine_state == 'NOT_READY_TO_MAKE':
+         if self.cup_present and not self.water_enough:
+            return 'not enough water'
+         elif not self.cup_present and self.water_enough:
+            return 'no cup detected'
+         elif not self.cup_present and not self.water_enough:
+            return 'not enough water and no cup detected'
+      elif self.machine_state == 'COFFEE_IS_READY':
+         return 'please consume the previously made cofee first'
+      elif self.machine_state == 'MAKING_IN_PROGRESS':
+         return 'coffee is in the progress of making, please wait for that to finish first'
+      return 'something is wrong, please get machine state again'
 
    def start_make_coffee(self):
-      if self.machine_state != 'READY_TO_MAKE':
-         return 'ERROR'
+      if self.get_machine_state() != 'READY_TO_MAKE':
+         return 'ERROR: ' + self.get_not_ready_reason()
       # code to start make coffee process
       self.__set_machine_state('MAKING_IN_PROGRESS')
-      self.child_process.start()
+      self.child_thread.start()
       return 'SUCCESS'
 
    def __set_machine_state(self, new_state):
       if new_state not in ['READY_TO_MAKE', 'NOT_READY_TO_MAKE', 'COFFEE_IS_READY', 'MAKING_IN_PROGRESS']:
-         return 'ERROR'
+         raise ValueError()
       with self.machine_state_lock:
          self.machine_state = new_state
       return 'SUCCESS'
@@ -98,6 +105,8 @@ class Machine():
 
    def __keep_update_coffee_ready_status(self):
       while self.machine_state == 'MAKING_IN_PROGRESS':
+         if self.thread_exit:
+            return
          if self.__is_coffee_ready():
             break
          time.sleep(1)
@@ -106,8 +115,11 @@ class Machine():
 
    def __keep_update_coffee_pickup_status(self):
       while self.machine_state == 'COFFEE_IS_READY':
+         if self.thread_exit:
+            return
          if not self.__is_cup_present():
             break
          time.sleep(1)
-      self.__set_machine_state('COFFEE_IS_READY')
+      self.__set_machine_state('NOT_READY_TO_MAKE')
+      # self.scheduler.start_timer_for_next_job()
 
