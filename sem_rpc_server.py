@@ -1,4 +1,4 @@
-import json, hashlib, time, urllib.parse, inspect
+import json, hashlib, time, urllib.parse, inspect, ssl
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from jsonrpcserver import methods
 from jsonrpcserver.exceptions import MethodNotFound, InvalidParams, ServerError
@@ -113,7 +113,9 @@ def start(logger, pipe):
    global global_server_pipe
    global_server_pipe = pipe
    handler = MakeCustomLoggableJSONRPCRequestHandler(logger)
-   HTTPServer((SERVER_BIND_IP, SERVER_PORT), handler).serve_forever()
+   httpd = HTTPServer((SERVER_BIND_IP, SERVER_PORT), handler)
+   httpd.socket = ssl.wrap_socket(httpd.socket, server_side=True, certfile=SSL_CERT, keyfile=SSL_KEY)
+   httpd.serve_forever()
 
 
 @methods.add

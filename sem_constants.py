@@ -13,8 +13,8 @@ SERVER_BIND_IP = ''  # '' for all interface, '127.0.0.1' for localhost
 SERVER_PORT = 9999
 RPC_PATH = '/jsonrpc'
 
-SSL_CERT = ''
-SSL_KEY = ''
+SSL_CERT = '/home/%s/letsencrypt/cert.pem' % UNAME
+SSL_KEY = '/home/%s/letsencrypt/key.pem' % UNAME
 
 # machine constants
 WATER_THRESHOLD = 12
