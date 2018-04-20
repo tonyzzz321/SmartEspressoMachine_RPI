@@ -22,7 +22,8 @@ def MakeCustomLoggableJSONRPCRequestHandler(logger):
          request = self.rfile.read(int(self.headers['Content-Length'])).decode()
          # check if domain+path is requesting the jsonrpc
          host = self.headers['Host']
-         if (SERVER_DOMAIN not in host) or (self.path != RPC_PATH):
+         # if (SERVER_DOMAIN not in host) or (self.path != RPC_PATH):
+         if (self.path != RPC_PATH):
             self.forbidden(request)
             return
          # check if param sign is valid
@@ -114,7 +115,7 @@ def start(logger, pipe):
    global_server_pipe = pipe
    handler = MakeCustomLoggableJSONRPCRequestHandler(logger)
    httpd = HTTPServer((SERVER_BIND_IP, SERVER_PORT), handler)
-   httpd.socket = ssl.wrap_socket(httpd.socket, server_side=True, certfile=SSL_CERT, keyfile=SSL_KEY)
+   # httpd.socket = ssl.wrap_socket(httpd.socket, server_side=True, certfile=SSL_CERT, keyfile=SSL_KEY)
    httpd.serve_forever()
 
 

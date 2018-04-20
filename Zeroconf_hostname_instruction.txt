@@ -1,0 +1,29 @@
+Instruction of Zeroconf Hostname for Android App auto ip detection
+(maybe make a script to do it automatically later)
+
+1. Install dependencies avahi-daemon, libnss-mdns:
+   sudo apt-get update
+   sudo apt-get install avahi-daemon libnss-mdns
+
+2. Add this line to /etc/nsswitch.conf:
+   hosts: files mdns4_minimal [NOTFOUND=return] dns mdns4
+
+3. Create a new file called sem.service in /etc/avahi/services/ with the following content:
+   
+   <?xml version="1.0" standalone='no'?><!--*-nxml-*-->
+   <!DOCTYPE service-group SYSTEM "avahi-service.dtd">
+   <service-group>
+     <name replace-wildcards="yes">%h</name>
+     <service>
+        <type>_sem._tcp</type>
+        <port>9999</port>
+     </service>
+   </service-group>
+
+   This make the pi broadcast itself as _sem._tcp in the local network. Android app can search for this to identify the Smart Espresso Machine and its ip to connect to it.
+
+4. Restart avahi-daemon service:
+   sudo service avahi-daemon restart
+
+5. Profit!
+

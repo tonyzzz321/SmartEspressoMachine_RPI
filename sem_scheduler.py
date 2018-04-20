@@ -32,7 +32,7 @@ class Scheduler():
          self.timer.cancel()
          self.__set_timer_running_state(False)
       countdown = self.seconds_until_next_job()
-      if countdown != None and type(countdown) == int:
+      if countdown > 0:
          self.timer = Timer(countdown, self.__timer_expire_action)
          self.__set_timer_running_state(True)
          self.timer.start()
@@ -124,8 +124,8 @@ class Scheduler():
          return 'ERROR: user not found'
       if id == 0:
          if len(self.database[user]) == 0:
-            return 'ERROR: this user has no job schedule'
-         else:
+         #    return 'ERROR: this user has no job schedule'
+         # else:
             return self.database[user]
       for entry in self.database[user]:
          if entry['id'] == id:
@@ -141,14 +141,26 @@ class Scheduler():
          for entry_list in self.database.values():
             all_entries += entry_list
       elif user not in self.database.keys():
-         return 'ERROR: user not found'
+         return -3   # user not found
       else:
          all_entries = self.database[user]
+
+      if id != 0:
+         temp_entry_list = None
+         for entry in all_entries:
+            if entry['id'] == id:
+               temp_entry_list = [entry]
+               break
+         if temp_entry_list == None:
+            return -2   # id not found
+         else:
+            all_entries = temp_entry_list
 
       enabled_entries = filter((lambda x: x['enabled'] == True), all_entries)
       base_time = time.time()
       second_in_entries = list(map((lambda x: int(croniter(x['cron'], base_time).get_next() - base_time)), enabled_entries))
 
       if len(second_in_entries) == 0:
-         return None
+         return -1   # entry not enabled
       return min(second_in_entries)
+

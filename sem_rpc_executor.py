@@ -68,11 +68,10 @@ class RPCExecutor():
       return self.scheduler.seconds_until_next_job(id=id)
 
    def test_notification(self):
-      return self.notifier.send('this is a test message')
+      return self.notifier.send('Test', 'this is a test message')
 
    def make_coffee_now(self):
-      return 'placeholder'
-      # return self.machine.start_make_cofee()
+      return self.machine.start_make_coffee()
 
    def get_sensors_status(self, update):
       param_dict = locals()
@@ -81,14 +80,17 @@ class RPCExecutor():
       result = self.__verify_param_type(type_dict, param_dict)
       if result != 'SUCCESS':
          return result
-
-      return 'placeholder'
-      # return self.machine.get_sensors_status(update=update)
+         
+      return self.machine.get_sensors_status(update=update)
 
    def get_not_ready_reason(self):
-      return 'placeholder'
-      # return self.machine.get_not_ready_reason()
+      return self.machine.get_not_ready_reason()
 
    def get_machine_state(self):
-      return 'placeholder'
-      # return self.machine.get_machine_state()
+      return self.machine.get_machine_state()
+
+   def upload_firebase_token(self, token):
+      return self.notifier.new_token()
+
+   def clear_firebase_token(self):
+      return self.notifier.clear_token()

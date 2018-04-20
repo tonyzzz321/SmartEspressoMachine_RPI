@@ -1,15 +1,14 @@
 import time
 from threading import Thread, Lock
 from sem_constants import *
+from sem_gpio_util import GPIO_Util
 
 class Machine():
    
-   def __init__(self, machine_gpio, water_gpio, cup_gpio):
+   def __init__(self, gpio_dict=GPIO_DICT):
    # def __init__(self, scheduler, machine_gpio, water_gpio, cup_gpio):
       # self.scheduler = scheduler
-      self.machine_gpio = machine_gpio
-      self.water_sensor_gpio = water_gpio
-      self.cup_sensor_gpio = cup_gpio
+      self.gpio_util = GPIO_Util(gpio_dict)
       self.cup_present = None
       self.water_level = None
       self.water_enough = None
@@ -68,7 +67,7 @@ class Machine():
    def start_make_coffee(self):
       if self.get_machine_state() != 'READY_TO_MAKE':
          return 'ERROR: ' + self.get_not_ready_reason()
-      # code to start make coffee process
+      self.gpio_util.make_coffee('ESPRESSO') # need to add different coffee option later
       self.__set_machine_state('MAKING_IN_PROGRESS')
       self.child_thread.start()
       return 'SUCCESS'
@@ -82,6 +81,7 @@ class Machine():
 
    def __is_cup_present(self, update_machine_state = False):
       new_value = True  # placeholder for now
+      # new_value = self.gpio_util.get_cup_presence()
       with self.cup_present_lock:
          self.cup_present = new_value
       if update_machine_state and (not self.cup_present) and (self.machine_state == 'COFFEE_IS_READY'):
@@ -96,6 +96,7 @@ class Machine():
 
    def __get_water_level(self):
       new_value = 12 # placeholder for now
+      # new_value = self.gpio_util.get_water_level()
       with self.water_level_lock:
          self.water_level = new_value
       return self.water_level

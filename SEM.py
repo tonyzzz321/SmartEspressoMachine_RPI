@@ -14,8 +14,8 @@ class Controller():
 
    def __init__(self):
       self.scheduler = Scheduler(db_path = SCHEDULER_DATABASE_PATH)
-      self.machine = Machine(11, 12, 13)  # placeholder for gpio pins
-      self.notifier = Notifier()
+      self.machine = Machine()
+      self.notifier = Notifier(token_path = FCM_CLIENT_TOKEN_PATH)
       self.executor = RPCExecutor(self.scheduler, self.machine, self.notifier)
       parent_conn, child_conn = Pipe()
       self.server_pipe = parent_conn
@@ -59,6 +59,7 @@ def msg(text, level='info'):
 def exit_script(exit_code = 0):
    msg('Receive terminate signal, script exiting with exit code %d' % exit_code)
    try:
+      controller.machine.gpio_util.clean_up()
       controller.server_process.terminate()
       controller.scheduler.timer.cancel()
       controller.machine.thread_exit = True
