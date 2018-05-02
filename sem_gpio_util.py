@@ -2,7 +2,7 @@ import RPi.GPIO as GPIO
 import time
 
 from rpisensors.proximity import VL6180X
-from sem_constants import CUP_DISTANCE_THRESHOLD, MAX_WATER_DISTANCE
+from sem_constants import CUP_DISTANCE_THRESHOLD, WATER_LEVEL_TABLE
 
 class GPIO_Util():
 
@@ -68,7 +68,10 @@ class GPIO_Util():
       raw_reading = self.__proximity_sensor_read_raw('WATER')
 
       # translate reading to water level
-      water_level = MAX_WATER_DISTANCE - raw_reading
+      for convert in WATER_LEVEL_TABLE:
+         if raw_reading < convert['max_distance']:
+            water_level = convert['level']
+            break
 
       return water_level
       

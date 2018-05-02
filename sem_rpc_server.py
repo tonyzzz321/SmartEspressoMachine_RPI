@@ -70,6 +70,9 @@ def MakeCustomLoggableJSONRPCRequestHandler(logger):
          request = json.loads(req)
          try:
             request['id']
+            if request['method'] in ['param_sort_and_format']:   # allow for the debug methods
+               return True
+
             if request['method'] != 'sem_do':
                raise KeyError
             params = request['params']
@@ -137,3 +140,23 @@ def sem_do(**kwargs):
    except EOFError:
       raise ServerError()
    return result
+
+@method.add
+def param_sort_and_format(**kwargs):
+   params = dict(**kwargs)
+   data = ""
+   keys = list(params.keys())
+   keys.sort()
+   for key in keys:
+      data += "" if (data == "") else "&"
+      value = params[key]
+      if type(value) == int:
+         value = str(value)
+      data += key + "=" + str(urllib.parse.quote(value))
+   return data
+
+@method.add
+def param_sign(**kwargs):
+   h = hashlib.sha256()
+   h.update((param_sort_and_format(**kwargs) + APP_KEY).encode())
+   return h.hexdigest()

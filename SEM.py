@@ -14,8 +14,8 @@ class Controller():
 
    def __init__(self):
       self.scheduler = Scheduler(db_path = SCHEDULER_DATABASE_PATH)
-      self.machine = Machine()
       self.notifier = Notifier(token_path = FCM_CLIENT_TOKEN_PATH)
+      self.machine = Machine(self.notifier)
       self.executor = RPCExecutor(self.scheduler, self.machine, self.notifier)
       parent_conn, child_conn = Pipe()
       self.server_pipe = parent_conn
@@ -32,7 +32,7 @@ class Controller():
                self.scheduler.outside_reset_times_up_state()
                self.scheduler.start_timer_for_next_job()
             else:
-               self.notifier.send(result)
+               self.notifier.send('Scheduled Coffee Making Failed', result)
          else:
             time.sleep(1)
 

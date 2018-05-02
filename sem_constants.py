@@ -18,9 +18,14 @@ RPC_PATH = '/jsonrpc'
 # SSL_KEY = '/home/%s/letsencrypt/key.pem' % UNAME
 
 # machine constants
-WATER_THRESHOLD = 10
+WATER_THRESHOLD = 25
 CUP_DISTANCE_THRESHOLD = 5
-MAX_WATER_DISTANCE = 100
+WATER_LEVEL_TABLE = [
+   {'level': 100, 'max_distance': 5},
+   {'level': 75, 'max_distance': 20},
+   {'level': 50, 'max_distance': 35},
+   {'level': 25, 'max_distance': 50},
+   {'level': 0, 'max_distance': 999}]  # pretty much infinity
 # GPIO_MODE = GPIO.BOARD
 GPIO_DICT = {
    'ESPRESSO':    {'pin': 16, 'mode': 'out'},

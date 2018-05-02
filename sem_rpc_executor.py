@@ -27,12 +27,13 @@ class RPCExecutor():
    def add_schedule(self, id, cron_text, enabled):
       param_dict = locals()
       del param_dict['self']
-      type_dict = {'id': int, 'cron_text': str, 'enabled': bool}
+      type_dict = {'id': int, 'cron_text': str, 'enabled': int}
       result = self.__verify_param_type(type_dict, param_dict)
       if result != 'SUCCESS':
          return result
 
-      return self.scheduler.add_entry(cron_text=cron_text, id=id, enabled=enabled)
+      enabled_bool = (enabled == 1)
+      return self.scheduler.add_entry(cron_text=cron_text, id=id, enabled=enabled_bool)
 
    def delete_schedule(self, id):
       param_dict = locals()
@@ -52,10 +53,17 @@ class RPCExecutor():
       if result != 'SUCCESS':
          return result
 
-      return self.scheduler.get_entry(id=id)
+      if id <= 0:
+         return 'ERROR: id must be positive'
+      result = self.scheduler.get_entry(id=id)
+      result['enabled'] = 1 if result['enabled'] else 0
+      return result
 
    def get_schedule_list(self):
-      return self.scheduler.get_entry()
+      result = self.scheduler.get_entry()
+      for entry in result:
+         entry['enabled'] = 1 if entry['enabled'] else 0
+      return result
 
    def get_seconds_to_next_schedule(self, id):
       param_dict = locals()
@@ -70,18 +78,23 @@ class RPCExecutor():
    def test_notification(self):
       return self.notifier.send('Test', 'this is a test message')
 
-   def make_coffee_now(self):
-      return self.machine.start_make_coffee()
+   def make_coffee_now(self, coffee_type):
+      return self.machine.start_make_coffee(coffee_type)
 
    def get_sensors_status(self, update):
       param_dict = locals()
       del param_dict['self']
-      type_dict = {'update': bool}
+      type_dict = {'update': int}
       result = self.__verify_param_type(type_dict, param_dict)
       if result != 'SUCCESS':
          return result
          
-      return self.machine.get_sensors_status(update=update)
+      update_bool = (update == 1)
+      result = self.machine.get_sensors_status(update=update_bool)
+      result['cup_present'] = 1 if result['cup_present'] else 0
+      result['water_enough'] = 1 if result['water_enough'] else 0
+
+      return result
 
    def get_not_ready_reason(self):
       return self.machine.get_not_ready_reason()
@@ -92,5 +105,8 @@ class RPCExecutor():
    def upload_firebase_token(self, token):
       return self.notifier.new_token()
 
-   def clear_firebase_token(self):
-      return self.notifier.clear_token()
+   def delete_firebase_token(self, token):
+      if token == 'DELETE_ALL':
+         return self.notifier.clear_token()
+      else:
+         return self.notifier.delete_token(token)

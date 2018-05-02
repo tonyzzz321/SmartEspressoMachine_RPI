@@ -5,13 +5,13 @@ from sem_gpio_util import GPIO_Util
 
 class Machine():
    
-   def __init__(self, gpio_dict=GPIO_DICT):
+   def __init__(self, notifier, gpio_dict=GPIO_DICT):
    # def __init__(self, scheduler, machine_gpio, water_gpio, cup_gpio):
-      # self.scheduler = scheduler
+      self.notifier = notifier
       self.gpio_util = GPIO_Util(gpio_dict)
-      self.cup_present = None
-      self.water_level = None
-      self.water_enough = None
+      self.cup_present = None # boolean
+      self.water_level = None # integer from 0 to 100, representing percentage
+      self.water_enough = None   # boolean
       self.machine_state = None
       self.cup_present_lock = Lock()
       self.water_level_lock = Lock()
@@ -64,10 +64,12 @@ class Machine():
          return 'coffee is in the progress of making, please wait for that to finish first'
       return 'something is wrong, please get machine state again'
 
-   def start_make_coffee(self):
+   def start_make_coffee(self, coffee_type):
+      if coffee_type not in ['ESPRESSO', 'CAPPUCCINO', 'LATTE']:
+         return 'ERROR: unknown coffee type ' + coffee_type
       if self.get_machine_state() != 'READY_TO_MAKE':
          return 'ERROR: ' + self.get_not_ready_reason()
-      self.gpio_util.make_coffee('ESPRESSO') # need to add different coffee option later
+      self.gpio_util.make_coffee(coffee_type)
       self.__set_machine_state('MAKING_IN_PROGRESS')
       self.child_thread.start()
       return 'SUCCESS'
@@ -112,6 +114,7 @@ class Machine():
             break
          time.sleep(1)
       self.__set_machine_state('COFFEE_IS_READY')
+      self.notifier.send('Coffee Now Ready', 'The coffee you scheduled is now ready to enjoy!')
       self.__keep_update_coffee_pickup_status()
 
    def __keep_update_coffee_pickup_status(self):

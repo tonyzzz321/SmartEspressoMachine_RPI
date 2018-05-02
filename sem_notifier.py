@@ -31,6 +31,13 @@ class Notifier():
       self.__save_token()
       return 'SUCCESS'
 
+   def delete_token(self, token):
+      if token in self.token_list:
+         self.token_list.remove(token)
+         return 'SUCCESS'
+      else:
+         return 'ERROR: token not in database'
+
    def send(self, title, message):
 
       headers = {
