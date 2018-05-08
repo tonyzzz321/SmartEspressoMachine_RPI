@@ -1,4 +1,4 @@
-import json, hashlib, time, urllib.parse, inspect, ssl
+import logging, json, hashlib, time, urllib.parse, inspect, ssl
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from jsonrpcserver import methods
 from jsonrpcserver.exceptions import MethodNotFound, InvalidParams, ServerError
@@ -16,7 +16,9 @@ def MakeCustomLoggableJSONRPCRequestHandler(logger):
          super(CustomHTTPRequestHandler, self).__init__(*args, **kwargs)
 
       def log_message(self, format, *args):
-         self.logger.info("%s - - [%s] %s\n" % (self.address_string(), self.log_date_time_string(), format%args))
+         # self.logger.info("%s - - [%s] %s\n" % (self.address_string(), self.log_date_time_string(), format%args))
+         if self.command == 'POST':
+            self.logger.info("%s - %s\n" % (self.address_string(), format%args))
 
       def do_POST(self):
          request = self.rfile.read(int(self.headers['Content-Length'])).decode()
@@ -38,9 +40,19 @@ def MakeCustomLoggableJSONRPCRequestHandler(logger):
          self.end_headers()
          self.wfile.write(json.dumps(response).encode())
 
+      def do_GET(self): # to serve server log
+         if (self.path != LOG_PATH):
+            self.send_error(403)
+         else:
+            self.send_response(200)
+            self.send_header('Content-type', 'text/plain')
+            self.end_headers()
+            with open(LOG_FILE_PATH, 'rb') as log_file:
+               self.wfile.write(log_file.read())
+
       def do_OPTIONS(self):
          self.send_response(200)
-         self.send_header('Access-Control-Allow-Methods', 'POST, OPTIONS')
+         self.send_header('Access-Control-Allow-Methods', 'POST, GET, OPTIONS')
          self.end_headers()
 
       def forbidden(self, req):
@@ -70,7 +82,7 @@ def MakeCustomLoggableJSONRPCRequestHandler(logger):
          request = json.loads(req)
          try:
             request['id']
-            if request['method'] in ['param_sort_and_format']:   # allow for the debug methods
+            if request['method'] in ['param_sort_and_format', 'param_sign']:   # allow for the debug methods
                return True
 
             if request['method'] != 'sem_do':
@@ -113,9 +125,10 @@ def MakeCustomLoggableJSONRPCRequestHandler(logger):
 
 global_server_pipe = None
 
-def start(logger, pipe):
+def start(pipe):
    global global_server_pipe
    global_server_pipe = pipe
+   logger = logging.getLogger(__name__)
    handler = MakeCustomLoggableJSONRPCRequestHandler(logger)
    httpd = HTTPServer((SERVER_BIND_IP, SERVER_PORT), handler)
    # httpd.socket = ssl.wrap_socket(httpd.socket, server_side=True, certfile=SSL_CERT, keyfile=SSL_KEY)
@@ -141,7 +154,7 @@ def sem_do(**kwargs):
       raise ServerError()
    return result
 
-@method.add
+@methods.add
 def param_sort_and_format(**kwargs):
    params = dict(**kwargs)
    data = ""
@@ -155,7 +168,7 @@ def param_sort_and_format(**kwargs):
       data += key + "=" + str(urllib.parse.quote(value))
    return data
 
-@method.add
+@methods.add
 def param_sign(**kwargs):
    h = hashlib.sha256()
    h.update((param_sort_and_format(**kwargs) + APP_KEY).encode())
