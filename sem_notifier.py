@@ -17,55 +17,55 @@ class Notifier():
          getattr(self.logger, level)(text)
 
    def __load_token(self):
-      self.msg('Attempting to load FCM token database from %s' % self.token_path, 'debug')
+      self.msg('Attempting to load FCM token database from %s' % self.token_path, 'info')
       try:
          with open(self.token_path, 'r', encoding='utf-8') as db:
             self.token_list = json.loads(db.read())
-         self.msg('FCM token database loaded', 'debug')
+         self.msg('FCM token database loaded', 'info')
       except:
-         self.msg('FCM token database does not exist, creating new database', 'debug')
+         self.msg('FCM token database does not exist, creating new database', 'info')
          self.token_list = []
-         self.msg('FCM token database created', 'debug')
+         self.msg('FCM token database created', 'info')
 
    def __save_token(self):
-      self.msg('Attempting to write FCM token database to %s' % self.token_path, 'debug')
+      self.msg('Attempting to write FCM token database to %s' % self.token_path, 'info')
       with open(self.token_path, 'w', encoding='utf-8') as db:
          db.write(json.dumps(self.token_list, indent=3, sort_keys=True, ensure_ascii=False))
-      self.msg('FCM token database written to file sucessfully', 'debug')
+      self.msg('FCM token database written to file sucessfully', 'info')
 
    def new_token(self, token):
-      self.msg('Attempting to add FCM token to database: %s' % token, 'debug')
-      self.msg('Checking if FCM token is valid', 'debug')
+      self.msg('Attempting to add FCM token to database: %s' % token, 'info')
+      self.msg('Checking if FCM token is valid', 'info')
       header = {'Authorization': 'key=%s' % FCM_SERVER_KEY}
       r = requests.get(FCM_IID_LINK+token, headers=header)
       if r.status_code != 200:
-         self.msg('Adding FCM token to database failed: token is not valid', 'debug')
+         self.msg('Adding FCM token to database failed: token is not valid', 'info')
          return 'ERROR: token is not valid'
 
       self.token_list.append(token)
       self.__save_token()
-      self.msg('FCM token added to database', 'debug')
+      self.msg('FCM token added to database', 'info')
       return 'SUCCESS'
 
    def clear_token(self):
-      self.msg('Attempting to clear FCM token database', 'debug')
+      self.msg('Attempting to clear FCM token database', 'info')
       self.token_list = []
       self.__save_token()
-      self.msg('FCM token database cleared', 'debug')
+      self.msg('FCM token database cleared', 'info')
       return 'SUCCESS'
 
    def delete_token(self, token):
-      self.msg('Attempting to delete FCM token from database: %s' % token, 'debug')
+      self.msg('Attempting to delete FCM token from database: %s' % token, 'info')
       if token in self.token_list:
          self.token_list.remove(token)
-         self.msg('FCM token deleted from database', 'debug')
+         self.msg('FCM token deleted from database', 'info')
          return 'SUCCESS'
       else:
-         self.msg('Deleting FCM token from database failed: token is not in database', 'debug')
+         self.msg('Deleting FCM token from database failed: token is not in database', 'info')
          return 'ERROR: token not in database'
 
    def send(self, title, message):
-      self.msg('Attempting to send push notification to all registered devices: title=%s, message=%s' % (title, message), 'debug')
+      self.msg('Attempting to send push notification to all registered devices: title=%s, message=%s' % (title, message), 'info')
       headers = {
          'Authorization': 'Bearer ' + self.__get_access_token('https://www.googleapis.com/auth/firebase.messaging'),
          'Content-Type': 'application/json',
@@ -76,9 +76,9 @@ class Notifier():
          data = {
             "message": {
                "token" : token,
-               "notification" : {
+               "data" : {
                   "body" : message,
-                  "title" : title,
+                  "title" : title
                }
             }
          }
@@ -86,15 +86,15 @@ class Notifier():
          if r.status_code != 200:
             failed_token_list.append(token)
             all_successful = False
-            self.msg('Failed sending to device FCM token %s with HTTP error code %s' % (token,str(r.status_code)), 'debug')
+            self.msg('Failed sending to device FCM token %s with HTTP error code %s' % (token,str(r.status_code)), 'info')
          else:
-            self.msg('Succeeded sending to device FCM token %s' % token, 'debug')
+            self.msg('Succeeded sending to device FCM token %s' % token, 'info')
 
       if all_successful:
-         self.msg('Successfully sending push notication to all registered devices', 'debug')
+         self.msg('Successfully sending push notication to all registered devices', 'info')
          return 'SUCCESS'
       else:
-         self.msg('Push notication failed to send to some devices, check log for more details', 'debug')
+         self.msg('Push notication failed to send to some devices, check log for more details', 'info')
          return 'WARNING: Push notication failed to send to some devices, check log for more details'
 
    def __get_access_token(self, scopes):
@@ -102,7 +102,7 @@ class Notifier():
 
       :return: Access token.
       """
-      self.msg('Retrieving access token from Google FCM to authorize push notication requests', 'debug')
+      self.msg('Retrieving access token from Google FCM to authorize push notication requests', 'info')
       credentials = ServiceAccountCredentials.from_json_keyfile_name(FCM_SERVICE_ACCOUNT_PRIV_KEY, scopes)
       access_token_info = credentials.get_access_token()
       result = access_token_info.access_token
